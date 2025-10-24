@@ -96,7 +96,7 @@ Results are saved in a tab-separated `.txt` file. The file contains the non-para
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/ekehoe46/absorption-line-fitting.git
+git clone https://github.com/ekehoe46/absorption-line-fitting-tool.git
 cd absorption-line-fitting
 pip install -r requirements.txt
 ```
