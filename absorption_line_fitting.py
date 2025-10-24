@@ -8,7 +8,7 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 ################# CONSTANTS (CHANGE AS NEEDED #################
-SIM_NUM = 10 #number of simulated spectra you are creating
+SIM_NUM = 1000 #number of simulated spectra you are creating
 EDGE = 35 #interval width to look for abs line (in angstroms)
 GUESS = 10 #the allowed range around the expected line center where the fit searches for the Gaussian peak
 FLUX_MEAN_SIG = 4 #minimum absorption line significance level to be detected
