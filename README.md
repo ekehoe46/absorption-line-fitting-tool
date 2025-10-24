@@ -97,7 +97,7 @@ Clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/ekehoe46/absorption-line-fitting-tool.git
-cd absorption-line-fitting
+cd absorption-line-fitting-tool
 pip install -r requirements.txt
 ```
 
