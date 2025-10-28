@@ -129,7 +129,8 @@ To see how the absorption line fitting tool works, you can run it on the example
 - **Spectra** (`Example/spectra/`): sample `.txt` files with wavelength, flux, and error columns
 - **Line list** (`Example/linelist.txt`): defines the absorptioni lines and continuum windows
 - **Redshifts** (`Example/redshifts.txt`): redshift values and target spectra ID
-There is also a `results` directory with a catalog of the parameters of the fits along with the overplotted fits in the `plots` directory.
+
+There is also a `results` directory with a catalog of the parameters of the fits along with the overplotted fits in the `plots` directory. Running the script on the example will create a new catalog called `combined_absorption_results_v1.txt` and will overwrite the plots if you choose to run the overplotting feature.
 
 To run the script with the example data:
 ```bash
