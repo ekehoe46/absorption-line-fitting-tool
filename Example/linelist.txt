@@ -1,0 +1,3 @@
+linename	lam0	blue-window1	blue-window2	red-window1	red-window2
+feii2587	2586.65	2540	2560	2640	2660
+feii2600	2600.17	2540	2560	2640	2660
