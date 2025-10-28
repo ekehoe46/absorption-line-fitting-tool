@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from glob import glob
 import argparse
@@ -7,8 +8,10 @@ import os
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
+#NEED TO UPDATE FILENAME DOES NOT WORK FOR FIRST VERSION.
+
 ################# CONSTANTS (CHANGE AS NEEDED #################
-SIM_NUM = 1000 #number of simulated spectra you are creating
+SIM_NUM = 10 #number of simulated spectra you are creating
 EDGE = 35 #interval width to look for abs line (in angstroms)
 GUESS = 10 #the allowed range around the expected line center where the fit searches for the Gaussian peak
 FLUX_MEAN_SIG = 4 #minimum absorption line significance level to be detected
@@ -395,7 +398,7 @@ def get_filename(output_dir: str, base_name: str = FILE_NAME) -> str:
         str: A filepath inside output_dir with a version suffix if needed.
     """
     if not os.path.exists(base_name):
-        return base_name
+        return f"./{output_dir}/{base}"
 
     base, ext = os.path.splitext(base_name)
     version = 1
@@ -405,10 +408,65 @@ def get_filename(output_dir: str, base_name: str = FILE_NAME) -> str:
             return new_name
         version += 1
 
+def plot_line_fit(wave: np.ndarray, flux: np.ndarray, err: np.ndarray,
+                  popt: list, ion_wave_z: float, 
+                  obj_name: int, line_label: str,
+                  output_dir: str):
+    """
+    Plots the Gaussian fits for each spectra in the rest frame of the galaxy.
+
+    Parameters:
+        wave(np.ndarray): Wavelength array in angstroms
+        flux (np.ndarray): Flux array
+        err (np.ndarray): Error array for the observe fluxes
+        popt (list): Best-fit Gaussian parameters for the targeted absorption line
+                     (intercept, slope, amplitude, width (in rest frame), centroid (in rest frame))
+        ion_wave_z (float): Wavelength of the target absorption line in the rest frame of the galaxy
+        obj_name (int): Object ID of the target galaxy
+        line_label (str): Name of target absorption line
+        output_dir (str): Output folder for results
+
+    Returns:
+        No outputs, but plots the fitted absorption lines for each galaxy and saves them as .png in the results folder
+    """
+
+    plt.rcParams.update({'font.size': 14, 'text.usetex': True, 'font.family': 'STIXGeneral', 'font.weight': 'bold'})  
+
+    intercept, slope, amplitude, width, centroid = popt
+    if np.isnan(centroid):
+        return
+    plot_edge = 50
+    #cutting out section around target absorption line
+    mask = (wave >= ion_wave_z - plot_edge) & (wave <= ion_wave_z + plot_edge)
+    wave_cut, flux_cut, err_cut = wave[mask], flux[mask], err[mask]
+
+    model = absorption_model(wave_cut, intercept, slope, amplitude, width, centroid)
+
+    plt.figure()
+    plt.step(wave_cut, flux_cut, where = 'mid', color = 'k')
+    plt.fill_between(wave_cut, flux_cut - err_cut, flux_cut + err_cut, alpha=0.3, color = 'k')
+    plt.plot(wave_cut, model)
+    plt.axvline(ion_wave_z, linestyle="--")
+    plt.title(f"{obj_name}  {line_label}")
+    plt.xlabel("Wavelength ($\AA$)")
+    plt.ylabel("Normalized Flux")
+    plt.xlim(min(wave_cut), max(wave_cut))
+    plt.tight_layout()
+    
+    # Save the figure
+    plots_dir = os.path.join(output_dir, "plots")
+    os.makedirs(plots_dir, exist_ok=True)
+
+    filename = f"{obj_name}_{line_label}_fit.png"
+    save_path = os.path.join(plots_dir, filename)
+    plt.savefig(save_path)
+    plt.close()
+
 def main(spectra_dir: str, 
          line_file: str, 
          redshift_file: str, 
-         output_dir: str) -> None:
+         output_dir: str,
+         overplot: bool = False) -> None:
     """
     Process all spectra in a directory and measures desired absorption lines
 
@@ -431,8 +489,9 @@ def main(spectra_dir: str,
         return
 
     all_data = []
-    for spec_file in spectra_files:
-        print(f"Fitting lines to: {os.path.basename(spec_file)}")
+    for obj in redshift_df['Object']:
+        spec_file = f'{spectra_dir}/{obj}.txt'
+        print(f"Fitting lines to: {obj}")
         df = process_spectrum(spec_file, line_df, redshift_df)
         if df is not None:
             all_data.append(df)
@@ -465,10 +524,35 @@ def main(spectra_dir: str,
 
     df = pd.DataFrame(data)
     df = df.replace(0.0, -9999).fillna(-9999) #filling in non-detections with -9999
-    FILENAME = f'{output_dir}/combined_absorption_results.txt'
     filename = get_filename(output_dir, FILE_NAME)
     df.to_csv(filename, sep='\t', index=False)
     print(f"Results saved to: {filename}")
+
+    #overplot fits if specified to
+    if overplot:
+        print("Plotting fits...")
+        for i, obj in enumerate(redshift_df['Object']):
+            spec_file = f'{spectra_dir}/{obj}.txt'
+            wave, flux, err = extract_spectrum(spec_file)
+            z = redshift_df['z'][i]
+
+            res = all_data[i]
+
+            for j, row in line_df.iterrows():
+                ion = row['lam0']
+                line_label = row['linename']
+                centroid = res['mu_mean'][j]
+                #filter out lines that are not fit
+                if centroid != -9999:
+                    popt = [
+                        res['a_mean'][j],
+                        res['b_mean'][j],
+                        res['d_mean'][j],
+                        res['s_mean'][j]/(1+z),
+                        centroid/(1+z)
+                    ]
+
+                    plot_line_fit(wave/(1+z), flux, err, popt, ion, obj, line_label, output_dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fit Gaussian absorption lines in observed frame with redshift table.")
@@ -476,6 +560,7 @@ if __name__ == "__main__":
     parser.add_argument("line_file", help="File containing line definitions and continuum windows")
     parser.add_argument("redshift_file", help="File containing object IDs and redshifts")
     parser.add_argument("output_dir", help="Directory to save results")
+    parser.add_argument("--overplot", action="store_true", help="Option to overplot Gaussian fits")
 
     args = parser.parse_args()
-    main(args.spectra_dir, args.line_file, args.redshift_file, args.output_dir)
+    main(args.spectra_dir, args.line_file, args.redshift_file, args.output_dir, args.overplot)
