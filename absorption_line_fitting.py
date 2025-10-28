@@ -387,26 +387,19 @@ def process_spectrum(filepath: str,
     return results
 
 def get_filename(output_dir: str, base_name: str = FILE_NAME) -> str:
-    """
-    Generates a versioned output filename that avoids overwriting existing files.
-
-    Parameters:
-        output_dir (str): Folder where the output should be saved
-        base_name (str): Desired base filename
-
-    Returns:
-        str: A filepath inside output_dir with a version suffix if needed.
-    """
-    if not os.path.exists(base_name):
-        return f"./{output_dir}/{base}"
-
     base, ext = os.path.splitext(base_name)
+    output_path = os.path.join(output_dir, base_name)
+
+    if not os.path.exists(output_path):
+        return output_path
+
     version = 1
     while True:
-        new_name = f"./{output_dir}/{base}_v{version}{ext}"
+        new_name = os.path.join(output_dir, f"{base}_v{version}{ext}")
         if not os.path.exists(new_name):
             return new_name
         version += 1
+
 
 def plot_line_fit(wave: np.ndarray, flux: np.ndarray, err: np.ndarray,
                   popt: list, ion_wave_z: float, 
